@@ -9,21 +9,41 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Max Fitness">
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Přepnuto na produkční verze bez Babel kompilátoru by bylo ideální, ale pro lokální HTML soubor necháme Standalone -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
     * { -webkit-tap-highlight-color: transparent; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overscroll-behavior-y: none; }
-    input[type=number], input[type=text] { -webkit-appearance: none; margin: 0; font-size: 16px !important; }
-    .sticky-header { 
-      position: sticky; top: 0; z-index: 40; 
-      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); 
-      padding-top: max(env(safe-area-inset-top), 12px);
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+      overscroll-behavior-y: none;
+      background-color: #000000;
     }
-    .bottom-nav { padding-bottom: max(env(safe-area-inset-bottom), 12px); }
-    .safe-bottom-spacer { height: calc(80px + env(safe-area-inset-bottom)); }
+    input[type=number], input[type=text] { -webkit-appearance: none; margin: 0; font-size: 16px !important; }
+    
+    .sticky-header { 
+      position: sticky; 
+      top: 0; 
+      z-index: 40; 
+      backdrop-filter: blur(20px); 
+      -webkit-backdrop-filter: blur(20px); 
+      padding-top: calc(env(safe-area-inset-top, 48px) + 8px) !important;
+      padding-bottom: 12px !important;
+    }
+    
+    .bottom-nav { 
+      padding-top: 8px !important;
+      padding-bottom: calc(env(safe-area-inset-bottom, 20px) + 10px) !important; 
+    }
+    
+    .safe-bottom-spacer { 
+      height: calc(90px + env(safe-area-inset-bottom, 20px)); 
+    }
+    
+    /* Plynulá animace kroužků */
+    circle.progress-ring {
+      transition: stroke-dashoffset 1s ease-in-out;
+    }
   </style>
 </head>
 <body class="bg-black text-white antialiased min-h-screen">
@@ -32,10 +52,10 @@
   <script type="text/babel">
     const { useState, useEffect, useRef, useCallback, memo } = React;
 
-    const STORAGE_KEY_EX = 'mf_exercises_v5';
-    const STORAGE_KEY_WORKOUT = 'mf_active_workout_v5';
-    const STORAGE_KEY_HISTORY = 'mf_history_v5';
-    const STORAGE_KEY_NOTES = 'mf_notes_v5';
+    const STORAGE_KEY_EX = 'mf_exercises_v7';
+    const STORAGE_KEY_WORKOUT = 'mf_active_workout_v7';
+    const STORAGE_KEY_HISTORY = 'mf_history_v7';
+    const STORAGE_KEY_NOTES = 'mf_notes_v7';
     
     const INITIAL_EXERCISES = [
       { id: 'bp', name: 'Bench Press (velká činka)', category: 'push', muscleGroup: 'Hrudník', isAnchor: true, isCounterweight: false, repsTarget: '6-8' },
@@ -68,10 +88,6 @@
       { id: 'calf_seated', name: 'Výpony na lýtka vsedě', category: 'legs', muscleGroup: 'Lýtka', isAnchor: false, isCounterweight: false, repsTarget: '15-20' }
     ];
 
-    // ==========================================
-    // OPTIMALIZOVANÁ KOMPONENTA SÉRIE (React.memo)
-    // Zabraňuje zbytečnému re-renderování celého stromu
-    // ==========================================
     const SetRow = memo(({ s, sIdx, exId, isCounterweight, stepWeight, onWeightChange, onRepsChange, onRemove, onRpeChange, theme }) => {
       const isDark = theme === 'dark';
       
@@ -79,7 +95,7 @@
         let valStr = e.target.value.replace(',', '.');
         let val = parseFloat(valStr);
         if (isNaN(val)) val = 0;
-        onWeightChange(exId, s.id, val, true); // true = absolute value
+        onWeightChange(exId, s.id, val, true);
       };
 
       const handleRepsInput = (e) => {
@@ -92,7 +108,6 @@
         <div className={`p-3 rounded-2xl ${isDark ? 'bg-[#2C2C2E]' : 'bg-zinc-100'} space-y-2`}>
           <div className="flex items-center justify-between text-xs font-semibold">
             <span className="text-zinc-400 uppercase tracking-wider text-[11px]">SÉRIE {sIdx + 1}</span>
-            {/* Opravena plocha tlačítka (min 44pt UX standard) */}
             <button type="button" onClick={() => onRemove(exId, s.id)} className="text-[12px] text-zinc-400 hover:text-red-400 font-bold px-3 py-2 -mr-3 -mt-2">✕ Odstranit</button>
           </div>
 
@@ -101,7 +116,6 @@
               <span className="text-[10px] text-zinc-400 font-bold uppercase">{isCounterweight ? 'Protiváha (kg)' : 'Váha (kg)'}</span>
               <div className="flex items-center justify-between w-full mt-1">
                 <button type="button" onClick={() => onWeightChange(exId, s.id, -stepWeight, false)} className="w-12 h-12 rounded-xl bg-zinc-800 text-white font-bold text-xl active:scale-95">-</button>
-                {/* Oprava: inputmode="decimal" pro iOS klávesnici s tečkou/čárkou */}
                 <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" value={s.weight === 0 ? '' : s.weight} placeholder="0" onFocus={(e) => e.target.select()} onChange={handleWeightInput} className="w-16 text-center font-bold text-lg bg-transparent text-orange-400 outline-none" />
                 <button type="button" onClick={() => onWeightChange(exId, s.id, stepWeight, false)} className="w-12 h-12 rounded-xl bg-zinc-800 text-white font-bold text-xl active:scale-95">+</button>
               </div>
@@ -130,12 +144,97 @@
         </div>
       );
     });
+    
+    // KOMPONENTA PRO PROGRESS KROUŽKY (Apple Style)
+    const ProgressRings = ({ history }) => {
+      // Zjistíme unikátní dny cvičení v posledních 7 dnech
+      const now = new Date();
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      
+      const recentWorkouts = history.filter(h => new Date(h.date) >= weekAgo);
+      const uniqueDays = new Set(recentWorkouts.map(h => new Date(h.date).toDateString())).size;
+      
+      const saunas = recentWorkouts.filter(h => h.sauna?.used).length;
+      
+      // Výpočet zvednutých vah (orientační objem = váha * opáčka u všech nedopomocných cviků)
+      let recentVolume = 0;
+      let prevVolume = 0;
+      
+      history.forEach(h => {
+          const wDate = new Date(h.date);
+          let vol = 0;
+          h.exercises.forEach(ex => {
+              if(!ex.isCounterweight) {
+                  ex.sets.forEach(s => { vol += (s.weight * s.reps); });
+              }
+          });
+          
+          if (wDate >= weekAgo) {
+              recentVolume += vol;
+          } else if (wDate >= new Date(weekAgo.getTime() - 7 * 24 * 60 * 60 * 1000) && wDate < weekAgo) {
+              prevVolume += vol;
+          }
+      });
+      
+      const volTrend = prevVolume === 0 ? 100 : Math.min(100, Math.round((recentVolume / prevVolume) * 100));
 
-    // ==========================================
-    // HLAVNÍ APLIKACE
-    // ==========================================
+      const rings = [
+        { label: 'Tréninky / týden', color: '#ff9500', current: uniqueDays, target: 4, unit: 'dní' },
+        { label: 'Objem vs minule', color: '#34c759', current: volTrend, target: 100, unit: '%' },
+        { label: 'Sauna / týden', color: '#32ade6', current: saunas, target: 2, unit: 'x' }
+      ];
+
+      return (
+        <div className="flex flex-col items-center justify-center p-4">
+          <div className="relative w-48 h-48">
+            {rings.map((ring, index) => {
+              const radius = 80 - (index * 22);
+              const circumference = 2 * Math.PI * radius;
+              // Výpočet procenta (max 100%)
+              const percent = Math.min(100, Math.max(0, (ring.current / ring.target) * 100));
+              const offset = circumference - (percent / 100) * circumference;
+              
+              return (
+                <svg key={index} className="absolute top-0 left-0 w-full h-full transform -rotate-90">
+                  {/* Track */}
+                  <circle
+                    cx="96" cy="96" r={radius}
+                    stroke={ring.color} strokeWidth="18" fill="none"
+                    opacity="0.15" strokeLinecap="round"
+                  />
+                  {/* Progress (s plynulou CSS animací) */}
+                  <circle
+                    className="progress-ring"
+                    cx="96" cy="96" r={radius}
+                    stroke={ring.color} strokeWidth="18" fill="none"
+                    strokeLinecap="round"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
+                  />
+                </svg>
+              );
+            })}
+          </div>
+          
+          {/* Legenda kroužků */}
+          <div className="mt-8 space-y-3 w-full">
+            {rings.map((r, idx) => (
+               <div key={idx} className="flex justify-between items-center bg-zinc-900/50 p-3 rounded-2xl">
+                 <div className="flex items-center gap-2">
+                   <div className="w-3 h-3 rounded-full" style={{backgroundColor: r.color}}></div>
+                   <span className="text-xs font-bold text-zinc-300">{r.label}</span>
+                 </div>
+                 <span className="text-sm font-black" style={{color: r.color}}>{r.current} <span className="text-xs text-zinc-500 font-semibold">{r.unit}</span></span>
+               </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
     function App() {
       const [tab, setTab] = useState('workout');
+      // Výchozí split při zapnutí appky
       const [split, setSplit] = useState('push');
       const [stepWeight, setStepWeight] = useState(0.5);
       const [theme, setTheme] = useState('dark');
@@ -293,7 +392,6 @@
         });
       }, [split]);
       
-      // FUNKCE NA POSUN CVIKU (Nahrazení nefunkčního HTML Drag & Drop na iOS)
       const moveExercise = useCallback((exId, direction) => {
          setWorkoutState(prev => {
             const list = [...(prev[split] || [])];
@@ -373,9 +471,7 @@
         setCustomName('');
       };
 
-      // OPRAVENÁ Kouzelná hůlka (Řešení "Mix" a generování)
       const generateMagicWandWorkout = () => {
-        // Oprava pro "Mix" - vybere cviky ze všech kategorií
         const pool = split === 'mix' ? exercises : exercises.filter(e => e.category === split);
         let groups = [];
         
@@ -386,7 +482,6 @@
         } else if (split === 'legs') {
            groups = [{ name: 'Kvadricepsy', count: 3 }, { name: 'Hamstringy', count: 3 }, { name: 'Lýtka', count: 2 }];
         } else if (split === 'mix') {
-           // Pro mix navrhneme zkrácený fullbody (2x hrudník, 2x záda, 2x nohy)
            groups = [{ name: 'Hrudník', count: 2 }, { name: 'Záda', count: 2 }, { name: 'Kvadricepsy', count: 2 }];
         }
 
@@ -424,7 +519,6 @@
         showToast(`✨ Vygenerováno (Ghost data vložena)!`);
       };
 
-      // OPRAVA DOKONČENÍ TRÉNINKU (Nyní umožňuje váhu 0 kg)
       const requestFinishWorkout = () => {
         const currentList = workoutState[split] || [];
         
@@ -432,7 +526,6 @@
           const exObj = exercises.find(e => e.id === item.id) || { name: item.id, isCounterweight: false };
           return {
             id: item.id, name: exObj.name, isCounterweight: exObj.isCounterweight,
-            // VÁHA MUŽE BÝT 0 (např. vlastní váha), ale OPAKOVÁNÍ MUSÍ BÝT > 0
             sets: item.sets.filter(s => (parseInt(s.reps, 10) || 0) > 0).map(s => ({
               weight: parseFloat(s.weight) || 0, reps: parseInt(s.reps, 10) || 0, rpe: s.rpe || 'Akorát'
             }))
@@ -520,59 +613,68 @@
       return (
         <div className={`min-h-screen flex flex-col ${bgRoot}`}>
           {toastMsg && (
-            <div className="fixed top-16 left-4 right-4 z-[60] bg-emerald-600 text-white font-bold py-3 px-4 rounded-2xl shadow-2xl text-center text-sm pointer-events-none">
+            <div className="fixed top-20 left-4 right-4 z-[60] bg-emerald-600 text-white font-bold py-3 px-4 rounded-2xl shadow-2xl text-center text-sm pointer-events-none">
               {toastMsg}
             </div>
           )}
 
-          {/* STICKY HLAVIČKA */}
-          <header className={`sticky-header border-b ${isDark ? 'bg-black/85 border-zinc-900' : 'bg-white/85 border-zinc-200'} px-4 py-3 space-y-3`}>
+          {/* STICKY HLAVIČKA (Zobrazuje pouze název/kategorii, lišta PPL je podmíněně viz níže) */}
+          <header className={`sticky-header border-b ${isDark ? 'bg-black/90 border-zinc-900' : 'bg-white/90 border-zinc-200'} px-4 space-y-3`}>
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-xl font-extrabold tracking-tight">Max Fitness</h1>
-                <p className="text-[12px] text-zinc-400 font-medium">Hypertrofie & Objem • PPL</p>
+                <p className="text-[12px] text-zinc-400 font-medium">
+                   {tab === 'workout' ? 'Trénink (Hypertrofie)' : tab === 'history' ? 'Historie' : tab === 'progress' ? 'Progres' : 'Nastavení'}
+                </p>
               </div>
-              <button
-                onClick={openMagicWand}
-                className="px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold shadow-md shadow-orange-500/20 active:scale-95 transition-transform flex items-center gap-1.5"
-              >
-                <span>✨</span><span>Navrhnout trénink</span>
-              </button>
+              {/* Kouzelná hůlka jen na záložce Trénink */}
+              {tab === 'workout' && (
+                  <button
+                    onClick={openMagicWand}
+                    className="px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold shadow-md shadow-orange-500/20 active:scale-95 transition-transform flex items-center gap-1.5"
+                  >
+                    <span>✨</span><span>Navrhnout trénink</span>
+                  </button>
+              )}
             </div>
 
-            <div className={`grid grid-cols-4 p-1 rounded-2xl ${isDark ? 'bg-zinc-900' : 'bg-zinc-200'}`}>
-              {['push', 'pull', 'legs', 'mix'].map(s => (
-                <button
-                  key={s} onClick={() => setSplit(s)}
-                  className={`py-2 rounded-xl text-xs font-bold uppercase transition-all ${
-                    split === s ? 'bg-orange-500 text-white shadow-sm' : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
+            {/* Lišta splitů (Push/Pull...) JE VIDĚT POUZE NA ZÁLOŽCE TRÉNINKU */}
+            {tab === 'workout' && (
+                <div className={`grid grid-cols-4 p-1 rounded-2xl ${isDark ? 'bg-zinc-900' : 'bg-zinc-200'}`}>
+                  {['push', 'pull', 'legs', 'mix'].map(s => (
+                    <button
+                      key={s} onClick={() => setSplit(s)}
+                      className={`py-2 rounded-xl text-xs font-bold uppercase transition-all ${
+                        split === s ? 'bg-orange-500 text-white shadow-sm' : 'text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+            )}
           </header>
 
           <main className="px-4 pt-4 max-w-md mx-auto w-full flex-1">
             {tab === 'workout' && (
               <div className="space-y-4">
+                {/* Opravený text v tlačítku - odstraněna implementační závorka */}
                 <button
                   onClick={() => setAddModal(true)}
                   className="w-full py-4 rounded-2xl bg-zinc-900 border border-orange-500/40 text-sm font-bold text-orange-400 flex items-center justify-center gap-2 active:scale-98 transition-transform shadow-sm"
                 >
-                  <span className="text-lg font-black leading-none">+</span><span>Přidat další cvik (zařadí se nahoru)</span>
+                  <span className="text-lg font-black leading-none">+</span><span>Přidat další cvik</span>
                 </button>
 
                 {activeList.length === 0 && (
                   <div className={`p-8 text-center rounded-3xl border border-dashed ${isDark ? 'border-zinc-800 text-zinc-500' : 'border-zinc-300 text-zinc-400'}`}>
                     <p className="text-sm font-medium">Dnes v tomto splitu nemáš vybraný žádný cvik.</p>
-                    <button onClick={openMagicWand} className="mt-3 text-[13px] font-bold text-orange-400 underline p-2">Použij hůlku pro generování s Ghost daty</button>
+                    {/* Odstraněn text pro kouzelnou hůlku */}
                   </div>
                 )}
 
                 <div className="space-y-4">
-                  {activeList.map((item, idx) => {
+                  {activeList.map((item) => {
                     const ex = exercises.find(e => e.id === item.id) || { name: item.id, repsTarget: '8-10', isCounterweight: false };
                     const exNote = exerciseNotes[item.id] || '';
                     const isCollapsed = !!collapsedCards[item.id];
@@ -582,7 +684,6 @@
                       <div key={item.id} className={`rounded-3xl border transition-all ${cardBg}`}>
                         <div className="p-4 flex items-center justify-between cursor-pointer" onClick={() => toggleCardCollapse(item.id)}>
                           <div className="flex items-center gap-3 flex-1 pr-2">
-                            {/* Šipka rozbalování */}
                             <div className="text-orange-400 text-sm font-bold w-4 text-center">
                                {isCollapsed ? '▶' : '▼'}
                             </div>
@@ -625,7 +726,6 @@
                               ))}
                               
                               <div className="flex gap-2">
-                                {/* TLAČÍTKA NA POSUN POŘADÍ CVIKU (Nahrazuje nefunkční mobilní drag-and-drop) */}
                                 <div className="flex bg-zinc-800 rounded-xl overflow-hidden shadow-sm">
                                   <button type="button" onClick={() => moveExercise(item.id, 'up')} className="px-4 py-2.5 text-zinc-300 hover:text-white hover:bg-zinc-700 font-bold active:bg-zinc-600">↑</button>
                                   <div className="w-px bg-zinc-700"></div>
@@ -660,10 +760,8 @@
               </div>
             )}
 
-            {/* ZÁLOŽKA HISTORIE TRÉNINKŮ S OPRAVENOU IMMUTABILITOU */}
             {tab === 'history' && (
               <div className="space-y-4">
-                <h2 className="text-xl font-bold tracking-tight">Historie tréninků</h2>
                 <p className="text-[12px] text-zinc-400">Při kliknutí na ikonu tužky můžeš trénink upravit nebo smazat.</p>
                 {history.length === 0 ? (
                   <div className={`p-8 text-center rounded-3xl border border-dashed ${isDark ? 'border-zinc-800 text-zinc-500' : 'border-zinc-300 text-zinc-400'}`}>Zatím nemáš dokončený žádný trénink.</div>
@@ -680,7 +778,6 @@
                           </div>
                           <div className="flex items-center gap-2">
                             {item.sauna?.used && <span className="text-[11px] text-amber-400 font-semibold">🔥 Sauna {item.sauna.mins ? `${item.sauna.mins}m` : ''}</span>}
-                            {/* Větší klikací zóna (p-2) */}
                             <button type="button" onClick={() => setEditHistoryModal(JSON.parse(JSON.stringify(item)))} className="p-2 -mr-2 -my-2 text-zinc-400 hover:text-white text-lg" title="Upravit nebo Smazat">✏️</button>
                           </div>
                         </div>
@@ -703,31 +800,18 @@
               </div>
             )}
 
+            {/* ZÁLOŽKA PROGRES S APPLE FITNESS KROUŽKY */}
             {tab === 'progress' && (
               <div className="space-y-4">
-                <h2 className="text-xl font-bold tracking-tight">Aktivita & Kroužky</h2>
-                <div className={`p-6 rounded-3xl border ${cardBg} flex flex-col items-center justify-center space-y-4`}>
-                  <div className="flex gap-4">
-                    <div className="text-center">
-                      <div className="w-16 h-16 rounded-full border-4 border-orange-500 flex items-center justify-center font-bold text-orange-400 text-sm">{history.length}/4</div>
-                      <span className="text-[10px] text-zinc-400 block mt-1">Tréninky</span>
-                    </div>
-                    <div className="text-center">
-                      <div className="w-16 h-16 rounded-full border-4 border-emerald-500 flex items-center justify-center font-bold text-emerald-400 text-sm">+2.5</div>
-                      <span className="text-[10px] text-zinc-400 block mt-1">Trend (kg)</span>
-                    </div>
-                    <div className="text-center">
-                      <div className="w-16 h-16 rounded-full border-4 border-cyan-500 flex items-center justify-center font-bold text-cyan-400 text-sm">{history.filter(h => h.sauna?.used).length}×</div>
-                      <span className="text-[10px] text-zinc-400 block mt-1">Sauna</span>
-                    </div>
-                  </div>
+                <div className={`p-6 rounded-3xl border ${cardBg} w-full`}>
+                   <h3 className="font-bold text-center text-sm mb-4">Aktivita za posledních 7 dní</h3>
+                   <ProgressRings history={history} />
                 </div>
               </div>
             )}
 
             {tab === 'settings' && (
               <div className="space-y-4">
-                <h2 className="text-xl font-bold tracking-tight">Nastavení</h2>
                 <div className={`p-4 rounded-3xl border ${cardBg} space-y-4`}>
                   <div className="flex items-center justify-between">
                     <span className="text-[14px] font-semibold">Tmavý režim (Dark)</span>
@@ -757,19 +841,16 @@
               </div>
             )}
             
-            {/* Prázdné místo nad spodní lištou pro lepší scrollování v iOS Safari */}
             <div className="safe-bottom-spacer"></div>
           </main>
 
-          {/* SPODNÍ MENU SE SAFE AREA */}
-          <nav className={`fixed bottom-0 left-0 right-0 max-w-md mx-auto ${isDark ? 'bg-black/90 border-zinc-800' : 'bg-white/90 border-zinc-200'} backdrop-blur-md border-t py-2 bottom-nav px-4 flex justify-around items-center z-40`}>
+          <nav className={`fixed bottom-0 left-0 right-0 max-w-md mx-auto ${isDark ? 'bg-black/90 border-zinc-800' : 'bg-white/90 border-zinc-200'} backdrop-blur-md border-t bottom-nav px-4 flex justify-around items-center z-40`}>
             <button type="button" onClick={() => setTab('workout')} className={`flex flex-col items-center gap-1 text-[11px] font-semibold p-2 ${tab === 'workout' ? 'text-orange-500' : 'text-zinc-500'}`}><span className="text-xl">🏋️</span> Trénink</button>
             <button type="button" onClick={() => setTab('history')} className={`flex flex-col items-center gap-1 text-[11px] font-semibold p-2 ${tab === 'history' ? 'text-orange-500' : 'text-zinc-500'}`}><span className="text-xl">📋</span> Historie</button>
             <button type="button" onClick={() => setTab('progress')} className={`flex flex-col items-center gap-1 text-[11px] font-semibold p-2 ${tab === 'progress' ? 'text-orange-500' : 'text-zinc-500'}`}><span className="text-xl">📊</span> Progres</button>
             <button type="button" onClick={() => setTab('settings')} className={`flex flex-col items-center gap-1 text-[11px] font-semibold p-2 ${tab === 'settings' ? 'text-orange-500' : 'text-zinc-500'}`}><span className="text-xl">⚙️</span> Nastavení</button>
           </nav>
 
-          {/* MODÁL: ÚPRAVA / SMAZÁNÍ HISTORIE */}
           {editHistoryModal && (
             <div className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4">
               <div className={`w-full max-w-md rounded-3xl border p-5 max-h-[85vh] flex flex-col ${cardBg}`}>
@@ -789,7 +870,7 @@
                                 const valStr = evt.target.value.replace(',', '.');
                                 const val = parseFloat(valStr) || 0;
                                 setEditHistoryModal(prev => {
-                                    const next = JSON.parse(JSON.stringify(prev)); // Deep copy zachová immutability
+                                    const next = JSON.parse(JSON.stringify(prev));
                                     next.exercises[eIdx].sets[sIdx].weight = val;
                                     return next;
                                 });
@@ -828,7 +909,6 @@
             </div>
           )}
 
-          {/* MODÁL KNIHOVNA & TVORBA CVIKU */}
           {addModal && (
             <div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center p-4">
               <div className={`w-full max-w-sm rounded-3xl border p-5 space-y-4 max-h-[85vh] flex flex-col ${cardBg}`}>
@@ -872,7 +952,6 @@
             </div>
           )}
 
-          {/* MODÁL: NÁVRH TRÉNINKU (HŮLKA) */}
           {wandModal && (
             <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
               <div className={`w-full max-w-sm rounded-3xl border p-5 space-y-4 max-h-[85vh] flex flex-col ${cardBg}`}>
@@ -896,7 +975,6 @@
             </div>
           )}
 
-          {/* MODÁL: POTVRZENÍ AKCÍ */}
           {confirmDialog && (
             <div className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4">
               <div className={`w-full max-w-xs rounded-3xl border p-6 text-center space-y-4 ${cardBg}`}>
